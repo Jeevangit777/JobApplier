@@ -1,7 +1,8 @@
 import json
+import webbrowser
 from dataclasses import asdict
 from pathlib import Path
-from typing import Iterable, List
+from typing import Callable, Iterable, List
 
 from job_applier.ai import generate_cover_letter
 from job_applier.config import AppConfig
@@ -9,6 +10,7 @@ from job_applier.search.models import JobPosting
 
 
 APPLICATIONS_DIR = Path("applications")
+APPLICATION_LOG = APPLICATIONS_DIR / "application_log.json"
 
 
 def _slugify(text: str) -> str:
@@ -50,3 +52,24 @@ def build_application_packets(
             (folder / "summary.txt").write_text(summary)
         packets.append(folder)
     return packets
+
+
+def auto_apply_jobs(
+    jobs: Iterable[JobPosting],
+    log_path: Path = APPLICATION_LOG,
+    open_url: Callable[[str], bool] = webbrowser.open,
+) -> List[dict]:
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    entries: List[dict] = []
+    for job in jobs:
+        opened = bool(job.url and open_url(job.url))
+        entries.append(
+            {
+                "company": job.company,
+                "title": job.title,
+                "url": job.url,
+                "status": "opened" if opened else "skipped",
+            }
+        )
+    log_path.write_text(json.dumps(entries, indent=2))
+    return entries

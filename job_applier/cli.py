@@ -4,12 +4,14 @@ from typing import List
 
 from job_applier.apply.dispatcher import (
     build_application_packets,
+    auto_apply_jobs,
     load_shortlist,
     save_shortlist,
 )
 from job_applier.config import AppConfig, load_config, save_config, update_from_env
 from job_applier.search.models import JobPosting
 from job_applier.search.providers import PROVIDERS, search_all
+from job_applier.web import create_app
 
 
 def _print_jobs(jobs: List[JobPosting]) -> None:
@@ -75,6 +77,12 @@ def cmd_apply(args: argparse.Namespace) -> None:
         print(f"- {packet}")
     if args.dry_run:
         print("Dry run enabled; no files were written.")
+    if args.auto_apply:
+        results = auto_apply_jobs(jobs)
+        print("Auto-apply results:")
+        for entry in results:
+            status = entry.get("status")
+            print(f"- {entry.get('title')} @ {entry.get('company')} [{status}]")
 
 
 def cmd_show_config(args: argparse.Namespace) -> None:
@@ -134,10 +142,22 @@ def build_parser() -> argparse.ArgumentParser:
     )
     apply_parser.add_argument("--input", required=True, help="Path to shortlist JSON.")
     apply_parser.add_argument("--dry-run", action="store_true")
+    apply_parser.add_argument(
+        "--auto-apply",
+        action="store_true",
+        help="Open apply URLs in your browser and write a log file.",
+    )
     apply_parser.set_defaults(func=cmd_apply)
 
     show_parser = subparsers.add_parser("config", help="Show loaded config.")
     show_parser.set_defaults(func=cmd_show_config)
+
+    web_parser = subparsers.add_parser("web", help="Run the web UI.")
+    web_parser.add_argument("--host", default="127.0.0.1")
+    web_parser.add_argument("--port", type=int, default=8000)
+    web_parser.set_defaults(
+        func=lambda args: create_app().run(host=args.host, port=args.port, debug=False)
+    )
 
     return parser
 
