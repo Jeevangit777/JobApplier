@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>JobApplier Web</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 2rem auto;
+        max-width: 960px;
+        padding: 0 1rem;
+        color: #1f2937;
+      }
+      header {
+        margin-bottom: 1.5rem;
+      }
+      h1 {
+        margin-bottom: 0.25rem;
+      }
+      .note {
+        background: #fef3c7;
+        padding: 0.75rem 1rem;
+        border-radius: 8px;
+        margin-bottom: 1.5rem;
+      }
+      form {
+        background: #f9fafb;
+        padding: 1rem;
+        border-radius: 12px;
+        margin-bottom: 1.5rem;
+      }
+      label {
+        display: block;
+        margin-top: 0.75rem;
+        font-weight: 600;
+      }
+      input,
+      textarea,
+      select {
+        width: 100%;
+        margin-top: 0.25rem;
+        padding: 0.5rem;
+        border-radius: 6px;
+        border: 1px solid #d1d5db;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1rem;
+      }
+      .actions {
+        margin-top: 1rem;
+      }
+      button {
+        background: #2563eb;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        padding: 0.6rem 1rem;
+        cursor: pointer;
+      }
+      button.secondary {
+        background: #4b5563;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th,
+      td {
+        padding: 0.75rem;
+        border-bottom: 1px solid #e5e7eb;
+        vertical-align: top;
+      }
+      .error {
+        background: #fee2e2;
+        color: #991b1b;
+        padding: 0.75rem 1rem;
+        border-radius: 6px;
+        margin-bottom: 1rem;
+      }
+      .success {
+        background: #dcfce7;
+        color: #166534;
+        padding: 0.75rem 1rem;
+        border-radius: 6px;
+        margin-bottom: 1rem;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>JobApplier Web</h1>
+      <p>Search jobs, tailor cover letters, and prepare application packets for manual submission.</p>
+    </header>
+
+    <div class="note">
+      This tool prepares cover letters and summaries. Auto-apply opens apply links in your browser,
+      but it does not submit applications for you.
+    </div>
+
+    {% if error %}
+      <div class="error">{{ error }}</div>
+    {% endif %}
+
+    {% if packets %}
+      <div class="success">
+        Prepared {{ packets|length }} application packet(s). Review the folders below before applying.
+      </div>
+      <ul>
+        {% for packet in packets %}
+          <li>{{ packet }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+
+    {% if apply_results %}
+      <div class="success">
+        Auto-apply attempted for {{ apply_results|length }} job(s). Links were opened in your browser.
+      </div>
+      <ul>
+        {% for result in apply_results %}
+          <li>{{ result.title }} @ {{ result.company }} - {{ result.status }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+
+    <form action="/search" method="post" enctype="multipart/form-data">
+      <h2>Profile</h2>
+      <div class="grid">
+        <div>
+          <label for="full_name">Full name</label>
+          <input id="full_name" name="full_name" placeholder="Jane Doe" />
+        </div>
+        <div>
+          <label for="email">Email</label>
+          <input id="email" name="email" type="email" placeholder="jane@email.com" />
+        </div>
+        <div>
+          <label for="phone">Phone</label>
+          <input id="phone" name="phone" placeholder="123-456-7890" />
+        </div>
+        <div>
+          <label for="location">Location</label>
+          <input id="location" name="location" placeholder="Edmonton, AB" />
+        </div>
+      </div>
+      <label for="website">Website / LinkedIn</label>
+      <input id="website" name="website" placeholder="https://..." />
+
+      <label for="resume">Resume (PDF/DOCX)</label>
+      <input id="resume" name="resume" type="file" />
+
+      <label for="skills">Skills (comma or line separated)</label>
+      <textarea id="skills" name="skills" rows="2"></textarea>
+
+      <div class="grid">
+        <div>
+          <label for="roles">Target roles</label>
+          <textarea id="roles" name="roles" rows="2"></textarea>
+        </div>
+        <div>
+          <label for="locations">Target locations</label>
+          <textarea id="locations" name="locations" rows="2"></textarea>
+        </div>
+      </div>
+      <label>
+        <input type="checkbox" name="remote_only" /> Remote only
+      </label>
+
+      <h2>Job Search</h2>
+      <div class="grid">
+        <div>
+          <label for="query">Search query</label>
+          <input id="query" name="query" placeholder="Software Engineer" />
+        </div>
+        <div>
+          <label for="provider">Provider</label>
+          <select id="provider" name="provider">
+            <option value="">All providers</option>
+            {% for key in providers.keys() %}
+              <option value="{{ key }}">{{ key }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label for="limit">Limit</label>
+          <input id="limit" name="limit" type="number" min="1" max="100" value="20" />
+        </div>
+      </div>
+      <div class="actions">
+        <button type="submit">Search jobs</button>
+      </div>
+    </form>
+
+    {% if jobs %}
+      <form action="/apply" method="post">
+        <input type="hidden" name="config_id" value="{{ config_id }}" />
+        <input type="hidden" name="jobs_payload" value='{{ jobs_payload|tojson }}' />
+        <h2>Search results</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Select</th>
+              <th>Role</th>
+              <th>Company</th>
+              <th>Location</th>
+              <th>Apply link</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for job in jobs %}
+              <tr>
+                <td><input type="checkbox" name="selected" value="{{ loop.index0 }}" /></td>
+                <td>{{ job.title }}</td>
+                <td>{{ job.company }}</td>
+                <td>{{ job.location }}</td>
+                <td><a href="{{ job.url }}" target="_blank">Open posting</a></td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        <div class="actions">
+          <button type="submit" class="secondary">Prepare packets</button>
+        </div>
+        <label>
+          <input type="checkbox" name="auto_apply" /> Auto-apply (open apply links in browser)
+        </label>
+      </form>
+    {% endif %}
+  </body>
+</html>
